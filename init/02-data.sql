@@ -233,32 +233,32 @@ FROM orders o
 
 
 
--- Coupons (500개)
-INSERT INTO coupon (code, type, discount_rate, total_quantity, remaining_quantity, valid_from, valid_until)
-SELECT
-    CONCAT('COUPON-', LPAD(id, 6, '0')),
-    'FIXED',
-    1000 + (id % 10) * 500,
-    100,
-    100,
-    NOW(),
-    DATE_ADD(NOW(), INTERVAL 30 DAY)
-FROM (
-         SELECT @cid := @cid + 1 AS id
-         FROM information_schema.tables t1, information_schema.tables t2, (SELECT @cid := 3) r
-             LIMIT 99997
-     ) tmp;
+# -- Coupons (500개)
+# INSERT INTO coupon (code, type, discount_rate, total_quantity, remaining_quantity, valid_from, valid_until)
+# SELECT
+#     CONCAT('COUPON-', LPAD(id, 6, '0')),
+#     'FIXED',
+#     1000 + (id % 10) * 500,
+#     100,
+#     100,
+#     NOW(),
+#     DATE_ADD(NOW(), INTERVAL 30 DAY)
+# FROM (
+#          SELECT @cid := @cid + 1 AS id
+#          FROM information_schema.tables t1, information_schema.tables t2, (SELECT @cid := 3) r
+#              LIMIT 99997
+#      ) tmp;
 
 
--- Coupon Issues (50만 건)
-INSERT INTO coupon_issue (user_id, coupon_id, issued_at, is_used)
-SELECT DISTINCT user_id, coupon_id, NOW(), false
-FROM (
-         SELECT FLOOR(1 + RAND() * 50000) AS user_id,
-                FLOOR(1 + RAND() * 500) AS coupon_id
-         FROM information_schema.tables t1, information_schema.tables t2
-             LIMIT 500000
-     ) tmp;
+# -- Coupon Issues (50만 건)
+# INSERT INTO coupon_issue (user_id, coupon_id, issued_at, is_used)
+# SELECT DISTINCT user_id, coupon_id, NOW(), false
+# FROM (
+#          SELECT FLOOR(1 + RAND() * 50000) AS user_id,
+#                 FLOOR(1 + RAND() * 500) AS coupon_id
+#          FROM information_schema.tables t1, information_schema.tables t2
+#              LIMIT 500000
+#      ) tmp;
 
 
 SET NAMES utf8mb4;
