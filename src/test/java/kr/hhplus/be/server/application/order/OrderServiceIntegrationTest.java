@@ -6,13 +6,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
 
 @SpringBootTest
+@EmbeddedKafka(partitions = 1, topics = {"order-export"})
 class OrderServiceIntegrationTest {
 
     @Autowired
