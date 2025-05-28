@@ -1,6 +1,6 @@
 package kr.hhplus.be.server.application.product;
 
-import kr.hhplus.be.server.config.TestRedisCacheConfig;
+import kr.hhplus.be.server.config.redis.TestRedisCacheConfig;
 import kr.hhplus.be.server.scheduler.PopularProductWarmUpScheduler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
