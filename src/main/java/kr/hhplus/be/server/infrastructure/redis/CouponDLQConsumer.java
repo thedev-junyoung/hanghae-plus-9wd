@@ -32,7 +32,7 @@ public class CouponDLQConsumer {
 
     @Scheduled(fixedDelay = 5000)
     public void consumeDLQ() {
-        log.info("[DLQ 소비 시작]");
+        log.debug("[DLQ 소비 시작]");
         for (String code : couponService.findAllCouponCodes()) {
             String dlqKey = CouponStreamKeyResolver.dlq(code);
 
@@ -71,9 +71,9 @@ public class CouponDLQConsumer {
                 }
 
             } catch (Exception e) {
-                log.warn("[DLQ 소비 실패] code={}, error={}", code, e.getMessage());
+                log.debug("[DLQ 소비 실패] code={}, error={}", code, e.getMessage());
             }
-            log.info("[DLQ 소비 완료] code={}", code);
+            log.debug("[DLQ 소비 완료] code={}", code);
         }
     }
 

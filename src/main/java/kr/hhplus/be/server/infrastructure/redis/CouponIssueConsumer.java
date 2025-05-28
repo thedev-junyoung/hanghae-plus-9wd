@@ -38,7 +38,11 @@ public class CouponIssueConsumer {
                         StreamOffset.create(CouponStreamKeyResolver.resolve(code), ReadOffset.lastConsumed())
                 );
 
-                log.info("읽은 레코드 수 = {}", records.size());
+                log.debug("읽은 레코드 수 = {}", records.size());
+                if (records.isEmpty()) {
+                    log.debug("[DLQ] 처리할 메시지 없음 - couponCode={}", code);
+                    return;
+                }
                 processor.process(code, records);
 
                 for (MapRecord<String, Object, Object> record : records) {
@@ -60,7 +64,7 @@ public class CouponIssueConsumer {
                 StreamOffset.create(CouponStreamKeyResolver.resolve(code), ReadOffset.lastConsumed())
         );
 
-        log.info("읽은 레코드 수 = {}", records.size());
+        log.debug("읽은 레코드 수 = {}", records.size());
         processor.process(code, records);
 
         for (MapRecord<String, Object, Object> record : records) {
@@ -73,7 +77,7 @@ public class CouponIssueConsumer {
         String streamKey = CouponStreamKeyResolver.resolve(code);
 
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(streamKey))) {
-            log.info("[CouponConsumer] Stream이 존재하지 않아 더미 레코드를 추가합니다 - key={} ", streamKey);
+            log.debug("[CouponConsumer] Stream이 존재하지 않아 더미 레코드를 추가합니다 - key={} ", streamKey);
             redisTemplate.opsForStream().add(streamKey, Map.of("init", "init"));
         }
 
@@ -82,7 +86,7 @@ public class CouponIssueConsumer {
         } catch (Exception e) {
             Throwable rootCause = e.getCause();
             if (rootCause instanceof RedisBusyException && rootCause.getMessage().contains("BUSYGROUP")) {
-                log.warn("[CouponConsumer] 이미 생성된 Group입니다 - key={}", streamKey);
+                log.debug("[CouponConsumer] 이미 생성된 Group입니다 - key={}", streamKey);
             } else {
                 throw new IllegalStateException("Stream group 생성 실패: " + streamKey, e);
             }
