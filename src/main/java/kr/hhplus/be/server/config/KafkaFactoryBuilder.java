@@ -14,7 +14,7 @@ import java.util.Map;
 
 public class KafkaFactoryBuilder {
 
-    public static <T> ProducerFactory<String, T> buildProducerFactory(
+    public static <K, T> ProducerFactory<K, T> buildProducerFactory(
             KafkaProperties props,
             Class<?> valueSerializerClass
     ) {
