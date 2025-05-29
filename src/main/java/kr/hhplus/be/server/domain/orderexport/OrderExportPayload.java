@@ -4,27 +4,30 @@ import kr.hhplus.be.server.application.order.OrderExportRequestedEvent;
 import kr.hhplus.be.server.domain.order.Order;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.util.List;
 
 @Getter
 @AllArgsConstructor(staticName = "of")
+@NoArgsConstructor
 @ToString
 public class OrderExportPayload {
-    private final String orderId;
-    private final Long userId;
-    private final List<OrderItemPayload> items;
-    private final long totalAmount;
+    private String orderId;
+    private Long userId;
+    private List<OrderItemPayload> items;
+    private long totalAmount;
 
     @Getter
     @AllArgsConstructor(staticName = "of")
+    @NoArgsConstructor
     @ToString
     public static class OrderItemPayload {
-        private final Long productId;
-        private final int quantity;
-        private final int size;
-        private final long price;
+        private Long productId;
+        private int quantity;
+        private int size;
+        private long price;
     }
 
     public static OrderExportPayload from(Order order) {
