@@ -8,6 +8,7 @@ import kr.hhplus.be.server.domain.order.OrderItem;
 import kr.hhplus.be.server.infrastructure.redis.CouponIssueStreamPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,9 +24,9 @@ public class CouponService implements CouponUseCase {
     private final CouponIssueRepository couponIssueRepository;
     private final Clock clock;
     private final CouponIssueStreamPublisher streamPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
 
-    @DistributedLock(key = "#command.couponCode", prefix = "coupon:issue:")
     @Transactional
     public CouponResult issueLimitedCoupon(IssueLimitedCouponCommand command) {
 
@@ -39,7 +40,6 @@ public class CouponService implements CouponUseCase {
             throw new CouponException.AlreadyIssuedException(command.userId(), command.couponCode());
         }
 
-        coupon.validateUsable(clock);
         coupon.decreaseQuantity(clock);
         log.info("[재고 차감 완료] couponCode={}, 남은 수량={}", coupon.getCode(), coupon.getRemainingQuantity());
 
@@ -53,6 +53,27 @@ public class CouponService implements CouponUseCase {
 
         return CouponResult.from(issue);
     }
+
+
+
+    @Transactional
+    @Override
+    public void requestCoupon(IssueLimitedCouponCommand command) {
+        Coupon coupon = couponRepository.findByCode(command.couponCode())
+                .orElseThrow(() -> new CouponException.NotFoundException(command.couponCode()));
+
+        if (couponIssueRepository.hasIssued(command.userId(), coupon.getId())) {
+            throw new CouponException.AlreadyIssuedException(command.userId(), command.couponCode());
+        }
+
+        coupon.validateUsable(clock, command.userId());
+
+        // 이벤트 발행
+        coupon.getDomainEvents().forEach(eventPublisher::publishEvent);
+        coupon.clearEvents();
+    }
+
+
 
 
     @Override

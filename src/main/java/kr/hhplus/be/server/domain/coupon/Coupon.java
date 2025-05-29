@@ -1,7 +1,9 @@
 package kr.hhplus.be.server.domain.coupon;
 
 import jakarta.persistence.*;
+import kr.hhplus.be.server.application.coupon.CouponIssueRequestedEvent;
 import kr.hhplus.be.server.common.vo.Money;
+import kr.hhplus.be.server.domain.common.AggregateRoot;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -12,7 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "coupon")
 @Getter
 @NoArgsConstructor
-public class Coupon {
+public class Coupon extends AggregateRoot<Long> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -104,6 +106,19 @@ public class Coupon {
             throw new CouponException.AlreadyExhaustedException();
         }
     }
+
+    public void validateUsable(Clock clock, Long userId) {
+        if (isExpired(clock)) {
+            throw new CouponException.ExpiredException();
+        }
+        if (isExhausted()) {
+            throw new CouponException.AlreadyExhaustedException();
+        }
+        // 도메인 이벤트 발행
+        this.registerEvent(new CouponIssueRequestedEvent(userId, this.code, LocalDateTime.now(clock)));
+    }
+
+
 
     public void decreaseQuantity(Clock clock) {
         validateUsable(clock);
