@@ -3,6 +3,7 @@ package kr.hhplus.be.server.domain.order;
 import jakarta.persistence.*;
 import kr.hhplus.be.server.application.order.OrderExportRequestedEvent;
 import kr.hhplus.be.server.application.order.ProductSalesRankRecordedEventFactory;
+import kr.hhplus.be.server.application.order.StockDecreaseRequested;
 import kr.hhplus.be.server.common.vo.Money;
 import kr.hhplus.be.server.domain.common.AggregateRoot;
 import kr.hhplus.be.server.domain.orderexport.OrderExportPayload;
@@ -64,7 +65,13 @@ public class Order extends AggregateRoot<String> {
         for (OrderItem item : items) {
             item.initOrder(order);
         }
-
+        order.registerEvent(
+                new StockDecreaseRequested(
+                        order.getId(),
+                        userId,
+                        items
+                )
+        );
         return order;
     }
 

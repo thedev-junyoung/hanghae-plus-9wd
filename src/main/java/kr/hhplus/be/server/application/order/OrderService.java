@@ -26,6 +26,7 @@ public class OrderService implements OrderUseCase {
     public Order createOrder(Long userId, List<OrderItem> items, Money totalAmount) {
         Order order = Order.create(userId, items, totalAmount);
         orderRepository.save(order);
+        order.getDomainEvents().forEach(eventPublisher::publishEvent);
         return order;
     }
     @Transactional(readOnly = true)

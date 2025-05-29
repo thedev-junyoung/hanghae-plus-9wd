@@ -18,20 +18,20 @@ public class OrderFacadeService {
     private final OrderProcessingService orderProcessingService;
     private final OrderCompensationService compensationService;
 
-    @DistributedLock(
-            prefix = "lock:order:create:",
-            key = "#command.userId",
-            waitTime = 5,
-            leaseTime = 3
-    )
+//    @DistributedLock(
+//            prefix = "lock:order:create:",
+//            key = "#command.userId",
+//            waitTime = 5,
+//            leaseTime = 3
+//    )
     public OrderResult createOrder(CreateOrderCommand command) {
         Order order = null;
 
         try {
             // 1. 재고 차감 (side effect)
-            for (var item : command.items()) {
-                stockService.decrease(DecreaseStockCommand.of(item.productId(), item.size(), item.quantity()));
-            }
+//            for (var item : command.items()) {
+//                stockService.decrease(DecreaseStockCommand.of(item.productId(), item.size(), item.quantity()));
+//            }
 
             // 2. 주문 처리 (순수 계산 + 저장)
             order = orderProcessingService.process(command);
