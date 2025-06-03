@@ -122,6 +122,15 @@ CREATE TABLE product_statistics (
                                     PRIMARY KEY (product_id, stat_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE outbox (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        aggregate_id VARCHAR(255) NOT NULL,
+                        event_type VARCHAR(255) NOT NULL,
+                        payload TEXT NOT NULL,
+                        occurred_at DATETIME(6) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
 --
 ALTER TABLE product_stock ADD CONSTRAINT uq_product_size UNIQUE (product_id, size);
 ALTER DATABASE hhplus

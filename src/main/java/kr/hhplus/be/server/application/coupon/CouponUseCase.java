@@ -23,5 +23,7 @@ public interface CouponUseCase {
     void enqueueLimitedCoupon(IssueLimitedCouponCommand command);
 
     List<String> findAllCouponCodes();
+
+    void requestCoupon(IssueLimitedCouponCommand issueLimitedCouponCommand);
 }
 

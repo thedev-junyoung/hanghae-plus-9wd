@@ -42,4 +42,15 @@ public class CouponRepositoryImpl implements CouponRepository {
         return jpaRepository.findExpiredCoupons(LocalDateTime.now());
     }
 
+    @Override
+    public boolean wasIssued(long l, String successCase) {
+
+        return jpaRepository.existsByIdAndCode(l, successCase);
+    }
+
+    @Override
+    public boolean hasIssued(long l, String successCase) {
+        return jpaRepository.existsByIdAndCode(l, successCase);
+    }
+
 }

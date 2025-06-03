@@ -10,22 +10,28 @@ import lombok.extern.slf4j.Slf4j;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+@Tag("kafka")
 @SpringBootTest
 @ActiveProfiles("test")
-@EmbeddedKafka(partitions = 1, topics = {"order-export"}, brokerProperties = {
-        "listeners=PLAINTEXT://localhost:9092", "port=9092"
-})
+@EmbeddedKafka(
+        partitions = 1,
+        topics = {"order-export"},
+        brokerProperties = {"listeners=PLAINTEXT://localhost:0"}  // 0은 사용 가능한 포트를 자동 할당
+)
 @EnableKafka
 @Slf4j
 class OrderExportKafkaFlowIntegrationTest {
@@ -60,7 +66,7 @@ class OrderExportKafkaFlowIntegrationTest {
 
     @Test
     @DisplayName("주문 생성 후 Kafka를 통해 외부 플랫폼으로 주문이 전송되는지 검증")
-    void end_to_end_kafka_flow_should_work() {
+    void aend_to_end_kafka_flow_should_work() {
 
         // when
         orderService.confirmOrder(order.getId());

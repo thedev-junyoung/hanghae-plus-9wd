@@ -22,4 +22,8 @@ public interface CouponRepository {
     Collection<Coupon> findAll();
 
     Collection<Coupon> findExpiredCoupons();
+
+    boolean wasIssued(long l, String successCase);
+
+    boolean hasIssued(long l, String successCase);
 }

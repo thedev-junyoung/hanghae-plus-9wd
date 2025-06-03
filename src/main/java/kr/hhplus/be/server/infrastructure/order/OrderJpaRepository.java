@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface OrderJpaRepository extends JpaRepository<Order, String> {
@@ -18,4 +19,6 @@ public interface OrderJpaRepository extends JpaRepository<Order, String> {
     @Query("SELECT o FROM Order o JOIN FETCH o.items WHERE o.id = :orderId")
     Optional<Order> findByIdWithItems(@Param("orderId") String orderId);
 
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items")
+    List<Order> findAllWithItems();
 }

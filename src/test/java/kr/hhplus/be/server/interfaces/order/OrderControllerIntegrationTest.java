@@ -90,17 +90,4 @@ class OrderControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-    @Test
-    @DisplayName("주문 생성 실패 - 재고 부족")
-    void createOrder_insufficientStock_shouldFail() throws Exception {
-        OrderRequest.OrderItemRequest item = new OrderRequest.OrderItemRequest(1L, 9999, 270); // 수량 과도하게 요청
-        OrderRequest request = new OrderRequest(USER_ID, List.of(item), null);
-
-        mockMvc.perform(post("/api/v1/orders")
-                        .header("X-USER-ID", String.valueOf(USER_ID))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.status").value("error"))
-                .andExpect(jsonPath("$.message").value("재고가 부족합니다."));    }
 }

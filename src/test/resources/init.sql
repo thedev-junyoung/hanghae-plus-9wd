@@ -121,6 +121,15 @@ CREATE TABLE product_statistics (
                                     PRIMARY KEY (product_id, stat_date)
 );
 
+CREATE TABLE outbox (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        aggregate_id VARCHAR(255) NOT NULL,
+                        event_type VARCHAR(255) NOT NULL,
+                        payload TEXT NOT NULL,
+                        occurred_at DATETIME NOT NULL
+);
+
+
 ALTER TABLE coupon_issue
 ADD CONSTRAINT uq_user_coupon UNIQUE (user_id, coupon_id);
 
@@ -175,7 +184,8 @@ INSERT INTO coupon (id, code, type, discount_rate, total_quantity, remaining_qua
 VALUES
     (1, 'WELCOME10', 'PERCENTAGE', 10, 100, 98, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY)),
     (2, 'FLAT5000', 'FIXED', 5000, 50, 49, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY)),
-    (3, 'TESTONLY1000', 'FIXED', 1000, 10, 10, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY));
+    (3, 'TESTONLY1000', 'FIXED', 1000, 10, 10, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY)),
+    (4, 'SUCCESS_CASE', 'PERCENTAGE', 20, 200, 198, NOW(), DATE_ADD(NOW(), INTERVAL 60 DAY));
 
 
 INSERT INTO coupon_issue (id, user_id, coupon_id, issued_at, is_used)
