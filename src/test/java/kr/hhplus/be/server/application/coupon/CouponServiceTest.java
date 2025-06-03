@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -38,6 +39,9 @@ class CouponServiceTest {
     private Clock fixedClock;
 
     @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
     CouponIssueStreamPublisher couponIssueStreamPublisher;
 
     private final String couponCode = "TEST10";
@@ -46,7 +50,8 @@ class CouponServiceTest {
     @BeforeEach
     void setUp() {
         fixedClock = Clock.fixed(Instant.parse("2025-04-27T00:00:00Z"), ZoneId.of("UTC"));
-        couponService = new CouponService(couponRepository, couponIssueRepository, fixedClock, couponIssueStreamPublisher);
+
+        couponService = new CouponService(couponRepository, couponIssueRepository, fixedClock, couponIssueStreamPublisher, eventPublisher);
 
     }
 

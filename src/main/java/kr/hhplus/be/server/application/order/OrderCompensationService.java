@@ -15,7 +15,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Profile("!test")
+//@Profile("!test")
 @Slf4j
 public class OrderCompensationService {
 

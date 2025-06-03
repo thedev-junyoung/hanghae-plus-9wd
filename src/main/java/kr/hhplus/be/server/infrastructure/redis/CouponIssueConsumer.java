@@ -39,10 +39,7 @@ public class CouponIssueConsumer {
                 );
 
                 log.debug("읽은 레코드 수 = {}", records.size());
-                if (records.isEmpty()) {
-                    log.debug("[DLQ] 처리할 메시지 없음 - couponCode={}", code);
-                    return;
-                }
+
                 processor.process(code, records);
 
                 for (MapRecord<String, Object, Object> record : records) {

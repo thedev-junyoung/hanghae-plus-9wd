@@ -121,6 +121,14 @@ CREATE TABLE product_statistics (
                                     PRIMARY KEY (product_id, stat_date)
 );
 
+CREATE TABLE outbox (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        aggregate_id VARCHAR(255) NOT NULL,
+                        event_type VARCHAR(255) NOT NULL,
+                        payload TEXT NOT NULL,
+                        occurred_at DATETIME NOT NULL
+);
+
 
 -- Users는 별도로 관리한다고 가정
 -- Products
@@ -146,7 +154,8 @@ VALUES
 INSERT INTO coupon (id, code, type, discount_rate, total_quantity, remaining_quantity, valid_from, valid_until)
 VALUES
     (1, 'WELCOME10', 'PERCENTAGE', 10, 100, 100, '2025-04-14 13:09:24.187936', '2025-05-14 13:09:24.187936'),
-    (2, 'FLAT5000', 'FIXED', 5000, 50, 50, '2025-04-14 13:09:24.187936', '2025-05-14 13:09:24.187936');
+    (2, 'FLAT5000', 'FIXED', 5000, 50, 50, '2025-04-14 13:09:24.187936', '2025-05-14 13:09:24.187936'),
+    (3, 'SUCCESS_CASE', 'FIXED', 5000, 50, 50, '2025-04-14 13:09:24.287936', '2025-05-14 13:09:24.287936');
 
 -- Coupon Issue
 INSERT INTO coupon_issue (id, user_id, coupon_id, issued_at, is_used)

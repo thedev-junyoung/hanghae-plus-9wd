@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface CouponIssueJpaRepository extends JpaRepository<CouponIssue, Long> {
-    boolean existsByUserIdAndCoupon_Id(Long userId, Long couponId);
+    boolean existsByUserIdAndCouponId(Long userId, Long couponId);
     Optional<CouponIssue> findByUserIdAndCoupon_Id(Long userId, Long couponId);
 
     @Query("SELECT COUNT(ci) FROM CouponIssue ci WHERE ci.coupon.code = :code")

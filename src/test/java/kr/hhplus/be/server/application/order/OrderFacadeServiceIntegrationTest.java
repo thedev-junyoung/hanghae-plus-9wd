@@ -1,21 +1,22 @@
 package kr.hhplus.be.server.application.order;
 
-import kr.hhplus.be.server.common.vo.Money;
 import kr.hhplus.be.server.domain.order.OrderRepository;
-import kr.hhplus.be.server.domain.product.Product;
-import kr.hhplus.be.server.domain.product.ProductException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 @SpringBootTest
+@EmbeddedKafka(
+        topics = {"order.stock.decrease.requested", "stock.decrease.failed"},
+        partitions = 3,
+        brokerProperties = {"listeners=PLAINTEXT://localhost:0"}
+)
 class OrderFacadeServiceIntegrationTest {
 
     @Autowired

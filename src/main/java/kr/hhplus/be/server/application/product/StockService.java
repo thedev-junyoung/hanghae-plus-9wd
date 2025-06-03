@@ -14,12 +14,12 @@ public class StockService {
 
     private final ProductStockRepository productStockRepository;
 
-    @DistributedLock(
-            prefix = "stock:decrease:",
-            key = "#command.productId + ':' + #command.size",
-            waitTime = 5,
-            leaseTime = 3
-    )
+//    @DistributedLock(
+//            prefix = "stock:decrease:",
+//            key = "#command.productId + ':' + #command.size",
+//            waitTime = 5,
+//            leaseTime = 3
+//    )
     public void decrease(DecreaseStockCommand command) {
         log.info("[비즈니스 로직] 재고 차감 - 상품 ID: {}, 사이즈: {}, 수량: {}", command.productId(), command.size(), command.quantity());
         ProductStock stock = productStockRepository.findByProductIdAndSize(command.productId(), command.size())
