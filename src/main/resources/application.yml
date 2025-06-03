@@ -40,6 +40,8 @@ spring:
     redis:
       host: localhost
       port: 6379
+  kafka:
+    bootstrap-servers: kafka:9092
 
   kafka:
     bootstrap-servers: localhost:9094
