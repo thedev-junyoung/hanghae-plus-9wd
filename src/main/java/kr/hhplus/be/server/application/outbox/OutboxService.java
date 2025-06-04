@@ -24,8 +24,16 @@ public class OutboxService {
             String payload = objectMapper.writeValueAsString(event);
             log.info("[Outbox Service] payload={}", payload);
 
+            String eventId = event.getId(); // 또는 generateUniqueId(event) 같은 방식
+
+            if (outboxRepository.existsById(eventId)) {
+                log.warn("[Outbox 중복 차단] 이미 저장된 이벤트입니다. eventId={}", eventId);
+                return;
+            }
+
             log.info("[Outbox 직렬화 시작] event={}", event);
             OutboxMessage message = new OutboxMessage(
+                    eventId,
                     event.getAggregateId(),
                     event.getEventType(),
                     payload,

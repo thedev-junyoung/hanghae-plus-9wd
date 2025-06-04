@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Component
@@ -18,6 +20,8 @@ import java.util.Base64;
 public class CouponIssueKafkaConsumer {
 
     private final CouponUseCase couponUseCase;
+    // 테스트 검증을 위한 수신 메시지 저장소
+    public static final List<ConsumerRecord<String, String>> receivedDltMessages = new CopyOnWriteArrayList<>();
 
     @KafkaListener(
             topics = "coupon.issue",
@@ -51,6 +55,8 @@ public class CouponIssueKafkaConsumer {
         log.warn("[DLT] 쿠폰 발급 실패 메시지 수신됨 - key={}, value={}", record.key(), record.value());
         byte[] decoded = Base64.getDecoder().decode(record.value().replaceAll("\"", ""));
         String json = new String(decoded, StandardCharsets.UTF_8);
+
+        receivedDltMessages.add(record);
 
         log.info("[DLT] 디코딩된 메시지 = {}", json);
         // TODO: Slack 알림, 재처리 큐 적재 등 후속 조치

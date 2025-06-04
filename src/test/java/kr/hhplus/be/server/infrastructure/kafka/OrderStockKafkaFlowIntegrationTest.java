@@ -4,43 +4,30 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import kr.hhplus.be.server.application.order.CreateOrderCommand;
 import kr.hhplus.be.server.application.order.OrderFacadeService;
-import kr.hhplus.be.server.application.order.OrderResult;
-import kr.hhplus.be.server.domain.order.Order;
-import kr.hhplus.be.server.domain.order.OrderItem;
-import kr.hhplus.be.server.domain.order.OrderRepository;
-import kr.hhplus.be.server.domain.order.OrderStatus;
-import kr.hhplus.be.server.domain.product.Product;
-import kr.hhplus.be.server.domain.product.ProductRepository;
-import kr.hhplus.be.server.domain.product.ProductStock;
-import kr.hhplus.be.server.domain.product.ProductStockRepository;
 import kr.hhplus.be.server.common.vo.Money;
+import kr.hhplus.be.server.domain.order.*;
+import kr.hhplus.be.server.domain.order.Order;
+import kr.hhplus.be.server.domain.product.*;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.LocalDate;
-
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-
 @Tag("kafka")
 @Slf4j
 @SpringBootTest
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ActiveProfiles("test")
 @EmbeddedKafka(
         topics = {"order.stock.decrease.requested", "stock.decrease.failed"},
@@ -49,45 +36,42 @@ import static org.awaitility.Awaitility.await;
 )
 public class OrderStockKafkaFlowIntegrationTest {
 
-    @Autowired
-    private OrderFacadeService orderFacadeService;
+    private EmbeddedKafkaBroker embeddedKafka;
 
     @Autowired
-    private ProductRepository productRepository;
+    void setEmbeddedKafka(EmbeddedKafkaBroker broker) {
+        this.embeddedKafka = broker;
+    }
 
-    @Autowired
-    private ProductStockRepository stockRepository;
+    @BeforeAll
+    void init() {
+        System.setProperty("spring.kafka.bootstrap-servers", embeddedKafka.getBrokersAsString());
+    }
 
-    @Autowired
-    private OrderRepository orderRepository;
+    @Autowired private OrderFacadeService orderFacadeService;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private ProductStockRepository stockRepository;
+    @Autowired private OrderRepository orderRepository;
+    @Autowired private KafkaTemplate<String, StockDecreaseFailedKafkaMessage> kafkaTemplate;
 
     @PersistenceContext
     private EntityManager em;
 
-    @Autowired
-    private KafkaTemplate<String, StockDecreaseFailedKafkaMessage> kafkaTemplate;
-
-
     private Long productId;
-
+    private long testRunId;
     private static final int INIT_STOCK = 10;
     private static final int ORDER_QTY = 5;
     private static final int CONCURRENCY = 3;
 
-
-    @DynamicPropertySource
-    static void kafkaProperties(DynamicPropertyRegistry registry) {
-        // EmbeddedKafkaBroker.getBrokersAsString()을 정적으로 접근
-        // 테스트 클래스 로딩 시 자동으로 설정됨
-        registry.add("spring.kafka.bootstrap-servers", () ->
-                System.getProperty("spring.embedded.kafka.brokers")
-        );
-    }
     @BeforeEach
     void setUp() {
-        Product product = Product.create("통합 테스트 상품", "TestBrand", Money.wons(10000), LocalDate.now(), null, null);
+        this.testRunId = System.nanoTime(); // 유니크한 테스트 식별자
+
+        String productName = "통합 테스트 상품 - " + testRunId;
+        Product product = Product.create(productName, "TestBrand", Money.wons(10000), LocalDate.now(), null, null);
         product = productRepository.save(product);
         stockRepository.save(ProductStock.of(product.getId(), 270, INIT_STOCK));
+
         em.clear();
         this.productId = product.getId();
     }
@@ -99,7 +83,7 @@ public class OrderStockKafkaFlowIntegrationTest {
         var latch = new CountDownLatch(CONCURRENCY);
 
         for (int i = 0; i < CONCURRENCY; i++) {
-            final long userId = 100L + i;
+            final long userId = testRunId + i;
             executor.execute(() -> {
                 try {
                     CreateOrderCommand command = new CreateOrderCommand(
@@ -120,29 +104,19 @@ public class OrderStockKafkaFlowIntegrationTest {
         em.clear();
 
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            // 1. 모든 주문 조회
-            List<Order> all = orderRepository.findAllWithItems();
-
-            // 2. 테스트 상품의 주문만 필터링
-            List<Order> testOrders = all.stream()
-                    .filter(o -> o.getItems().stream()
-                            .anyMatch(i -> i.getProductId().equals(productId))
-                    )
+            List<Order> testOrders = orderRepository.findAllWithItems().stream()
+                    .filter(o -> o.getItems().stream().anyMatch(i -> i.getProductId().equals(productId)))
                     .toList();
 
-            log.info("[Await] 테스트 주문 수={}", testOrders.size());
-            for (Order order : testOrders) {
-                log.info("[Await] 주문 ID={}, 상태={}", order.getId(), order.getStatus());
-            }
-
             long confirmedCount = testOrders.stream()
-                    .filter(order -> order.getStatus() == OrderStatus.CREATED) // 비즈니스 상 SUCCESS 상태
+                    .filter(order -> order.getStatus() == OrderStatus.CREATED)
                     .count();
+
             long failedCount = testOrders.stream()
                     .filter(order -> order.getStatus() == OrderStatus.CANCELLED)
                     .count();
-            ProductStock stock = stockRepository.findByProductIdAndSize(productId, 270)
-                    .orElseThrow();
+
+            ProductStock stock = stockRepository.findByProductIdAndSize(productId, 270).orElseThrow();
 
             log.info("[Await] 재고={}, 성공 주문 수={}, 실패 주문 수={}",
                     stock.getStockQuantity(), confirmedCount, failedCount);
@@ -152,11 +126,13 @@ public class OrderStockKafkaFlowIntegrationTest {
             assertThat(stock.getStockQuantity()).isEqualTo(0);
         });
     }
+
     @Test
     @DisplayName("중복 메시지 수신 시 보상 로직 멱등성 보장")
     void should_handle_duplicate_failure_messages_idempotently() {
+        long userId = testRunId + 999;
         Order order = Order.create(
-                100L,
+                userId,
                 List.of(OrderItem.of(productId, 1, 270, Money.wons(10000))),
                 Money.wons(10000)
         );
@@ -164,7 +140,8 @@ public class OrderStockKafkaFlowIntegrationTest {
         orderRepository.save(order);
         em.clear();
 
-        StockDecreaseFailedKafkaMessage message = new StockDecreaseFailedKafkaMessage(orderId , 100L, "재고 부족");
+        StockDecreaseFailedKafkaMessage message = new StockDecreaseFailedKafkaMessage(orderId, userId, "재고 부족");
+
         kafkaTemplate.send("stock.decrease.failed", orderId, message);
         kafkaTemplate.send("stock.decrease.failed", orderId, message);
 
@@ -181,7 +158,7 @@ public class OrderStockKafkaFlowIntegrationTest {
         CountDownLatch latch = new CountDownLatch(concurrency);
 
         for (int i = 0; i < concurrency; i++) {
-            long userId = 2000 + i;
+            long userId = testRunId + 2000 + i;
             Executors.newSingleThreadExecutor().execute(() -> {
                 try {
                     CreateOrderCommand cmd = new CreateOrderCommand(
@@ -203,7 +180,7 @@ public class OrderStockKafkaFlowIntegrationTest {
 
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
             List<Order> orders = orderRepository.findAllWithItems().stream()
-                    .filter(o -> o.getUserId() >= 2000)
+                    .filter(o -> o.getUserId() >= testRunId + 2000)
                     .toList();
 
             long created = orders.stream().filter(o -> o.getStatus() == OrderStatus.CREATED).count();
@@ -216,7 +193,5 @@ public class OrderStockKafkaFlowIntegrationTest {
             assertThat(created).isLessThanOrEqualTo(INIT_STOCK);
             assertThat(cancelled).isGreaterThan(0);
         });
-
     }
-
 }

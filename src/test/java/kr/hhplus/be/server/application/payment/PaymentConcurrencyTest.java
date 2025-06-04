@@ -20,6 +20,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Profile;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -59,6 +61,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 
 @SpringBootTest
+@Profile("test")
+@EmbeddedKafka(partitions = 1, topics = {"order-export"})
 public class PaymentConcurrencyTest {
 
     @Autowired
@@ -135,14 +139,27 @@ public class PaymentConcurrencyTest {
 
         latch.await();
 
-        Balance balance = balanceRepository.findByUserId(userId).orElseThrow();
+        // ✅ 해당 userId에 대한 Balance만 조회
+        Balance balance = balanceRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalStateException("Balance not found for test user: " + userId));
 
-        System.out.println("성공: " + successes.size());
-        System.out.println("실패: " + failures.size());
+        // ✅ 테스트 결과 출력 (확실히 테스트 데이터만 대상으로)
+        System.out.println("테스트 유저 ID: " + userId);
+        System.out.println("성공 요청 수: " + successes.size());
+        System.out.println("실패 요청 수: " + failures.size());
         System.out.println("잔액: " + balance.getAmount());
 
-        assertThat(successes).hasSize(1);
-        assertThat(balance.getAmount()).isEqualTo(0L);
-        assertThat(failures.size()).isEqualTo(CONCURRENCY - 1);
+        assertThat(successes)
+                .withFailMessage("결제는 정확히 1건만 성공해야 합니다")
+                .hasSize(1);
+
+        assertThat(balance.getAmount())
+                .withFailMessage("잔액은 정확히 10,000원이 차감되어 0이어야 합니다")
+                .isEqualTo(0L);
+
+        assertThat(failures.size())
+                .withFailMessage("실패한 결제 요청 수가 부족합니다")
+                .isEqualTo(CONCURRENCY - 1);
     }
+
 }

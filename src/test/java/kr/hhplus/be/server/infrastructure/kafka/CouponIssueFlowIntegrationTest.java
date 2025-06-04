@@ -11,15 +11,18 @@ import kr.hhplus.be.server.domain.outbox.OutboxRepository;
 import kr.hhplus.be.server.infrastructure.outbox.OutboxRelayScheduler;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -33,9 +36,25 @@ import static org.assertj.core.api.Assertions.assertThat;
         topics = {"coupon.issue", "coupon.issue.DLT"},
         brokerProperties = {"listeners=PLAINTEXT://localhost:0"}
 )
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ActiveProfiles("test")
 @Slf4j
+@EnableKafka
 public class CouponIssueFlowIntegrationTest {
+
+
+    private EmbeddedKafkaBroker embeddedKafka;
+
+    @Autowired
+    void setEmbeddedKafka(EmbeddedKafkaBroker broker) {
+        this.embeddedKafka = broker;
+    }
+
+    @BeforeAll
+    void init() {
+        System.setProperty("spring.kafka.bootstrap-servers", embeddedKafka.getBrokersAsString());
+    }
+
 
     @Autowired
     private CouponRepository couponRepository;
@@ -69,6 +88,9 @@ public class CouponIssueFlowIntegrationTest {
 
     @BeforeEach
     void setup() {
+
+        outboxRepository.deleteAll();
+
         Coupon coupon = Coupon.createLimitedFixed(
                 couponCode, 10, 10,
                 LocalDateTime.now(clock).minusDays(1),
@@ -87,7 +109,7 @@ public class CouponIssueFlowIntegrationTest {
         log.info("[Outbox 메시지 저장 전] outboxMessages={}", outboxMessagesBefore);
 
         // 2. Outbox 저장 확인
-        List<OutboxMessage> outboxMessages = outboxRepository.findTop100ByIdGreaterThanOrderByIdAsc(0L);
+        List<OutboxMessage> outboxMessages = outboxRepository.findTop100ByIdGreaterThanOrderByIdAsc("1");
         assertThat(outboxMessages).hasSize(1);
 
         // 3. OutboxRelayScheduler를 수동 호출하여 Kafka로 발행

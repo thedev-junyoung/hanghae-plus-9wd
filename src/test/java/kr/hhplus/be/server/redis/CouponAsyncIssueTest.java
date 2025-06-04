@@ -4,9 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -16,6 +18,12 @@ import java.util.stream.IntStream;
 
 @SpringBootTest
 @Slf4j
+@Profile("test")
+@EmbeddedKafka(
+        partitions = 1,
+        topics = {"coupon.issue", "coupon.issue.DLT"},
+        brokerProperties = {"listeners=PLAINTEXT://localhost:0"}
+)
 class CouponAsyncIssueTest {
 
     @Autowired
@@ -26,6 +34,7 @@ class CouponAsyncIssueTest {
     private static final String STREAM_KEY = "coupon:stream";  // 이벤트 큐
     private static final int MAX_ISSUE = 100;  // 정확히 100명만
     private static final int REQUESTS = 1_000_000;
+
 
     @Test
     void 선착순_쿠폰_발급_비동기_테스트() throws InterruptedException {

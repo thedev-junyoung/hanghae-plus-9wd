@@ -8,16 +8,16 @@ import kr.hhplus.be.server.domain.order.OrderRepository;
 import kr.hhplus.be.server.infrastructure.external.FakeExternalPlatformClient;
 import lombok.extern.slf4j.Slf4j;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Duration;
 import java.util.List;
@@ -32,9 +32,23 @@ import static org.assertj.core.api.Assertions.assertThat;
         topics = {"order-export"},
         brokerProperties = {"listeners=PLAINTEXT://localhost:0"}  // 0은 사용 가능한 포트를 자동 할당
 )
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @EnableKafka
 @Slf4j
 class OrderExportKafkaFlowIntegrationTest {
+
+    private EmbeddedKafkaBroker embeddedKafka;
+
+    @Autowired
+    void setEmbeddedKafka(EmbeddedKafkaBroker broker) {
+        this.embeddedKafka = broker;
+    }
+
+    @BeforeAll
+    void init() {
+        System.setProperty("spring.kafka.bootstrap-servers", embeddedKafka.getBrokersAsString());
+    }
+
 
     @Autowired
     OrderService orderService;
@@ -49,6 +63,7 @@ class OrderExportKafkaFlowIntegrationTest {
     void setUp() {
         fakeExternalPlatformClient.clear();
     }
+
 
     private Order order;
     @BeforeEach

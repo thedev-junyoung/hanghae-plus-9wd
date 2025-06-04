@@ -6,6 +6,7 @@ import kr.hhplus.be.server.application.coupon.IssueLimitedCouponCommand;
 import kr.hhplus.be.server.domain.coupon.CouponIssueRepository;
 import kr.hhplus.be.server.domain.coupon.CouponRepository;
 import kr.hhplus.be.server.domain.outbox.OutboxMessage;
+import kr.hhplus.be.server.domain.outbox.OutboxOffset;
 import kr.hhplus.be.server.domain.outbox.OutboxRepository;
 import kr.hhplus.be.server.infrastructure.outbox.OutboxRelayScheduler;
 import lombok.extern.slf4j.Slf4j;
@@ -13,18 +14,19 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.awaitility.Awaitility;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -38,21 +40,32 @@ import static org.awaitility.Awaitility.await;
 @Tag("kafka")
 @Slf4j
 @SpringBootTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ActiveProfiles("test")
 @EmbeddedKafka(
         partitions = 1,
         topics = {"coupon.issue", "coupon.issue.DLT"},
         brokerProperties = {"listeners=PLAINTEXT://localhost:0"}
 )
-
+@EnableKafka
 public class CouponIssueKafkaConsumerIntegrationTest {
+
+
+    private EmbeddedKafkaBroker embeddedKafka;
+
+    @Autowired
+    void setEmbeddedKafka(EmbeddedKafkaBroker broker) {
+        this.embeddedKafka = broker;
+    }
+
+    @BeforeAll
+    void init() {
+        System.setProperty("spring.kafka.bootstrap-servers", embeddedKafka.getBrokersAsString());
+    }
 
     @Autowired
     private KafkaTemplate<Object, Object> defaultKafkaTemplate;
 
-    @Autowired
-    private EmbeddedKafkaBroker embeddedKafka;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -82,8 +95,12 @@ public class CouponIssueKafkaConsumerIntegrationTest {
     @Autowired
     private CouponIssueRepository couponIssueRepository;
 
+
     @BeforeEach
     void setUp() {
+
+        outboxRepository.deleteAll();
+
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps("test-dlt-consumer", "false", embeddedKafka);
         Properties props = new Properties();
         props.putAll(consumerProps);
@@ -101,23 +118,20 @@ public class CouponIssueKafkaConsumerIntegrationTest {
         CouponIssueKafkaMessage failureMessage = new CouponIssueKafkaMessage(999L, "FAILURE_TEST");
         defaultKafkaTemplate.send("coupon.issue", "999", objectMapper.writeValueAsString(failureMessage));
 
-        // when
-        ConsumerRecords<String, String> records = dltConsumer.poll(Duration.ofSeconds(5));
+        // then: Awaitility 로 DLT 수신까지 기다림
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertThat(CouponIssueKafkaConsumer.receivedDltMessages).isNotEmpty();
 
-        // then
-        assertThat(records.count()).isGreaterThan(0);
+                    ConsumerRecord<String, String> record = CouponIssueKafkaConsumer.receivedDltMessages.get(0);
+                    byte[] decoded = Base64.getDecoder().decode(record.value().replaceAll("\"", ""));
+                    String json = new String(decoded, StandardCharsets.UTF_8);
 
-        for (ConsumerRecord<String, String> record : records) {
-            log.info("DLT record key={}, value={}", record.key(), record.value());
-            // Base64 디코딩
-            byte[] decoded = Base64.getDecoder().decode(record.value().replaceAll("\"", ""));
-            String json = new String(decoded, StandardCharsets.UTF_8);
-
-            log.info("[DLT] 디코딩된 메시지 = {}", json);
-            // 테스트에서는 여기서 값 확인
-            assertThat(json).contains("FAILURE_TEST");
-        }
+                    log.info("[TEST] 디코딩된 DLT 메시지 = {}", json);
+                    assertThat(json).contains("FAILURE_TEST");
+                });
     }
+
 
     @Test
     @DisplayName("성공적인 쿠폰 발급 메시지는 DLT로 가지 않아야 하고, 정상 처리되어야 한다")
@@ -136,7 +150,7 @@ public class CouponIssueKafkaConsumerIntegrationTest {
 
     @Test
     @DisplayName("쿠폰 발급 요청 중복 방지 테스트")
-    void shouldPreventDuplicateCouponIssue() throws Exception {
+    void shouldPreventDuplicateCouponIssue() {
         // given
         IssueLimitedCouponCommand command = new IssueLimitedCouponCommand(123L, "WELCOME10", "duplicate-req-1");
 
@@ -154,7 +168,7 @@ public class CouponIssueKafkaConsumerIntegrationTest {
 
     @Test
     @DisplayName("이미 발행된 메시지는 재발행되지 않아야 한다")
-    void relayShouldNotRePublishAlreadySentMessage() throws Exception {
+    void relayShouldNotRePublishAlreadySentMessage() {
         IssueLimitedCouponCommand command = new IssueLimitedCouponCommand(userId, couponCode, "request-456");
         couponUseCase.requestCoupon(command);
         outboxRelayScheduler.relay(); // 1차 발행
