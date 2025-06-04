@@ -14,11 +14,10 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString
-public class OutboxMessage extends AggregateRoot<Long> {
+public class OutboxMessage extends AggregateRoot<String> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @Column(nullable = false)
     private String aggregateId;
@@ -32,7 +31,8 @@ public class OutboxMessage extends AggregateRoot<Long> {
     @Column(nullable = false)
     private LocalDateTime occurredAt;
 
-    public OutboxMessage(String aggregateId, String eventType, String payload, LocalDateTime occurredAt) {
+    public OutboxMessage(String eventId, String aggregateId, String eventType, String payload, LocalDateTime occurredAt) {
+        this.id = eventId;
         this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.payload = payload;

@@ -123,13 +123,18 @@ CREATE TABLE product_statistics (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE outbox (
-                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        id VARCHAR(255) PRIMARY KEY,
                         aggregate_id VARCHAR(255) NOT NULL,
                         event_type VARCHAR(255) NOT NULL,
                         payload TEXT NOT NULL,
-                        occurred_at DATETIME(6) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+                        occurred_at DATETIME NOT NULL
+);
 
+CREATE TABLE outbox_offset (
+                               topic_name VARCHAR(255) NOT NULL PRIMARY KEY, -- e.g. 'coupon.issue.requested'
+                               last_processed_id VARCHAR(255) NOT NULL,      -- OutboxMessage.id (String UUID 또는 String 타입)
+                               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
 --
 ALTER TABLE product_stock ADD CONSTRAINT uq_product_size UNIQUE (product_id, size);

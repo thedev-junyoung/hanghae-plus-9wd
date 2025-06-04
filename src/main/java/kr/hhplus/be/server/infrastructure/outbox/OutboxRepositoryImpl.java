@@ -14,7 +14,7 @@ public class OutboxRepositoryImpl implements OutboxRepository {
     private final OutboxJpaRepository jpaRepository;
 
     @Override
-    public List<OutboxMessage> findTop100ByIdGreaterThanOrderByIdAsc(Long lastProcessedId) {
+    public List<OutboxMessage> findTop100ByIdGreaterThanOrderByIdAsc(String lastProcessedId) {
         return jpaRepository.findTop100ByIdGreaterThanOrderByIdAsc(lastProcessedId).stream()
                 .toList();
     }
@@ -27,5 +27,15 @@ public class OutboxRepositoryImpl implements OutboxRepository {
     @Override
     public List<OutboxMessage> findAll() {
         return jpaRepository.findAll();
+    }
+
+    @Override
+    public boolean existsById(String eventId) {
+        return jpaRepository.existsById(eventId);
+    }
+
+    @Override
+    public void deleteAll() {
+        jpaRepository.deleteAll();
     }
 }
